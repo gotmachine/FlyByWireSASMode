@@ -11,7 +11,7 @@ The **fly by wire** mode is available for pilots and probe cores at the same SAS
 
 ### Download and installation
 
-Compatible with **KSP 1.12.0** to **1.12.5** - Available on CKAN
+Compatible with **KSP 1.12.3** to **1.12.5** - Available on CKAN
 
 **Installation**
 
