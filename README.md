@@ -13,7 +13,7 @@ These addtional modes are available for pilots and probe cores at the same SAS l
 
 ### Download and installation
 
-Compatible with **KSP 1.12.0** to **1.12.5** - Available on [CKAN]
+Compatible with **KSP 1.12.3** to **1.12.5** - Available on CKAN
 
 **Installation**
 
