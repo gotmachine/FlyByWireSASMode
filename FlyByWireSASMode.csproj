@@ -86,7 +86,7 @@
   <ItemGroup>
     <Compile Include="FlyByWireSASMode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="VesselFlyByWireState.cs" />
+    <Compile Include="VesselState.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

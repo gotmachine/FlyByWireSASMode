@@ -2,7 +2,7 @@
   "NAME": "FlyByWireSASMode",
   "URL": "https://raw.githubusercontent.com/gotmachine/FlyByWireSASMode/master/GameData/FlyByWireSASMode/FlyByWireSASMode.version",
   "DOWNLOAD": "https://github.com/gotmachine/FlyByWireSASMode/releases",
-  "VERSION": {"MAJOR": 1, "MINOR": 0, "PATCH": 0, "BUILD": 0},
+  "VERSION": {"MAJOR": 1, "MINOR": 1, "PATCH": 0, "BUILD": 0},
   "KSP_VERSION": {"MAJOR": 1, "MINOR": 12, "PATCH": 5},
   "KSP_VERSION_MIN": {"MAJOR": 1, "MINOR": 12, "PATCH": 3},
   "KSP_VERSION_MAX": {"MAJOR": 1, "MINOR": 12, "PATCH": 5}
