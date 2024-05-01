@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace FlyByWireSASMode
 {
@@ -6,6 +7,7 @@ namespace FlyByWireSASMode
     {
         Stock,
         FlyByWire,
+        FlyByWirePlaneMode,
         ParallelPos,
         ParallelNeg
     }
@@ -14,7 +16,8 @@ namespace FlyByWireSASMode
     {
         public Vessel vessel;
         public CustomSASMode sasMode;
-        public Vector3 direction;
+        public Vector3d direction;
+        private Vector3d previousUp;
 
         public VesselState(Vessel vessel, CustomSASMode sasMode)
         {
@@ -27,11 +30,13 @@ namespace FlyByWireSASMode
         public void ResetDirection()
         {
             direction = vessel.GetTransform().up;
+            previousUp = vessel.up;
         }
 
         public void Destroy()
         {
             vessel.OnPreAutopilotUpdate -= OnPreAutopilotUpdate;
+            vessel.Autopilot.SetMode(vessel.autopilot.Mode);
         }
 
         private void OnPreAutopilotUpdate(FlightCtrlState st)
@@ -39,7 +44,7 @@ namespace FlyByWireSASMode
             // continuously set mode to stability assist so we know which button to disable
             vessel.Autopilot.mode = VesselAutopilot.AutopilotMode.StabilityAssist;
 
-            if (sasMode == CustomSASMode.FlyByWire)
+            if (sasMode == CustomSASMode.FlyByWire || sasMode == CustomSASMode.FlyByWirePlaneMode)
             {
                 // clear manual input
                 st.pitch = 0f;
@@ -48,32 +53,43 @@ namespace FlyByWireSASMode
                 if (FlightGlobals.ActiveVessel == vessel)
                 {
                     // get input manually so this can work when under partial control
-                    float pitch, yaw;
+                    bool precisionMode = FlightInputHandler.fetch.precisionMode;
+
+                    double pitch = GameSettings.AXIS_PITCH.GetAxis();
                     if (GameSettings.PITCH_DOWN.GetKey())
-                        pitch = -1f;
+                        pitch = precisionMode ? -0.25 : - 1.0;
                     else if (GameSettings.PITCH_UP.GetKey())
-                        pitch = 1f;
-                    else
-                        pitch = 0f;
+                        pitch = precisionMode ? 0.25 : 1.0;
 
+                    double yaw = GameSettings.AXIS_YAW.GetAxis();
                     if (GameSettings.YAW_LEFT.GetKey())
-                        yaw = -1f;
+                        yaw = precisionMode ? -0.25 : -1.0;
                     else if (GameSettings.YAW_RIGHT.GetKey())
-                        yaw = 1f;
-                    else
-                        yaw = 0f;
+                        yaw = precisionMode ? 0.25 : 1.0;
 
-                    // increase speed when further away from control direction
-                    float speed = Vector3.Dot(vessel.GetTransform().up, direction) - 1.2f;
+                    if (pitch != 0.0 || yaw != 0.0)
+                    {
+                        // increase speed when further away from control direction
+                        float speed = Vector3.Dot(vessel.GetTransform().up, direction) - 1.2f;
+                        speed *= FlyByWireSASMode.inputSensitivity;
 
-                    // transform pitch/yaw input into a X/Y translation on the navball
-                    Quaternion navballAttitudeGymbal = FlyByWireSASMode.instance.navBall.attitudeGymbal;
-                    direction =
-                        navballAttitudeGymbal.Inverse()
-                        * Quaternion.Euler(pitch * -speed, yaw * -speed, 0f)
-                        * navballAttitudeGymbal
-                        * direction;
+                        // transform pitch/yaw input into a X/Y translation on the navball
+                        QuaternionD navballAttitudeGymbal = FlyByWireSASMode.instance.navBall.attitudeGymbal;
+                        direction =
+                            QuaternionD.Inverse(navballAttitudeGymbal)
+                            * Lib.QuaternionDFromEuler(pitch * -speed, yaw * -speed, 0.0)
+                            * navballAttitudeGymbal
+                            * direction;
 
+                        direction.Normalize();
+                    }
+                }
+
+                if (sasMode == CustomSASMode.FlyByWirePlaneMode)
+                {
+                    Quaternion horizonCorrection = Lib.QuaternionDFromToRotation(previousUp, vessel.up);
+                    previousUp = vessel.up;
+                    direction = horizonCorrection * direction;
                     direction.Normalize();
                 }
             }
@@ -92,5 +108,7 @@ namespace FlyByWireSASMode
             vessel.Autopilot.SAS.lockedMode = false;
             vessel.Autopilot.SAS.SetTargetOrientation(direction, false);
         }
+
+
     }
 }

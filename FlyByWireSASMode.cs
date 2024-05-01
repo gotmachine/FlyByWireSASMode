@@ -16,29 +16,48 @@ namespace FlyByWireSASMode
     [DefaultExecutionOrder(1)] // our LateUpdate() need to run after VesselAutopilotUI.LateUpdate()
     internal class FlyByWireSASMode : MonoBehaviour
     {
+        private const string TEX_PATH = "FlyByWireSASMode/textures";
+        // singleton accessor
         internal static FlyByWireSASMode instance;
 
+        // internal state
         private static bool init;
+
+        // sprites
         private static Sprite flyByWireSprite;
+        private static Sprite flyByWirePlaneSprite;
         private static Sprite parallelPosSprite;
         private static Sprite parallelNegSprite;
+        
+        // config
         private static AutopilotMode requiredSASMode = AutopilotMode.Maneuver;
-        private static float inputSensitivity = 1f;
+        internal static float inputSensitivity = 1f;
 
+        // internal state
         private bool started;
 
+        // SAS UI buttons references
         private UIStateToggleButton stabilityAssistButton;
         private UIStateToggleButton flyByWireButton;
+        private UIStateToggleButton flyByWirePlaneButton;
         private UIStateToggleButton parallelPosButton;
         private UIStateToggleButton parallelNegButton;
 
+        // stock navball reference
         internal NavBall navBall;
+
+        // custom navball markers
         private GameObject navBallMarker;
         private GameObject navBallArrow;
 
+        // known active vessel (for polling purposes)
         private Vessel activeVessel;
+
+        // per vessel direction and state tracking
         private VesselState activeVesselState;
         private List<VesselState> nonActiveVesselStates = new List<VesselState>();
+
+        // known state for polling based state change detection
         private bool isModeAvailableOnActiveVessel;
 
         private void Awake()
@@ -68,21 +87,22 @@ namespace FlyByWireSASMode
                 }
             }
 
-            flyByWireSprite = LoadSprite("FlyByWireSASMode/FlyByWireMarker");
-            parallelPosSprite = LoadSprite("FlyByWireSASMode/ParallelPosMarker");
-            parallelNegSprite = LoadSprite("FlyByWireSASMode/ParallelNegMarker");
-        }
-
-        private static Sprite LoadSprite(string path)
-        {
-            Texture2D tex = GameDatabase.Instance.GetTexture(path, false);
+            Texture2D tex = GameDatabase.Instance.GetTexture(TEX_PATH, false);
             if (tex == null)
             {
-                Debug.LogError($"[FlyByWireSASMode] Unable to get 'GameData/{path}.png' texture, make sure the plugin is installed in the right folder.");
-                return null;
+                Debug.LogError($"[FlyByWireSASMode] Unable to get 'GameData/{TEX_PATH}.png' texture, make sure the plugin is installed in the right folder.");
+                return;
             }
 
-            return Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+            CreateSprite(tex, 0f, 0f, 64f, 64f, out flyByWireSprite);
+            CreateSprite(tex, 0f, 64f, 64f, 64f, out flyByWirePlaneSprite);
+            CreateSprite(tex, 0f, 128f, 34f, 34f, out parallelNegSprite);
+            CreateSprite(tex, 34f, 128f, 34f, 34f, out parallelPosSprite);
+        }
+
+        private static void CreateSprite(Texture2D tex, float xOffset, float yOffset, float xSize, float ySize, out Sprite sprite)
+        {
+            sprite = Sprite.Create(tex, new Rect(xOffset, tex.height - yOffset - ySize, xSize, ySize), new Vector2(0.5f, 0.5f));
         }
 
         private IEnumerator Start()
@@ -99,6 +119,7 @@ namespace FlyByWireSASMode
                 button.onClick.AddListener(DeactivateFromUI);
 
             flyByWireButton = CopySASButton(autopilotUI, AutopilotMode.Maneuver, "FlyByWire", "Fly by wire", 7f, 25f, flyByWireSprite, ActivateFlyByWireFromUI);
+            flyByWirePlaneButton = CopySASButton(autopilotUI, AutopilotMode.StabilityAssist, "FlyByWirePlane", "Fly by wire\n(plane mode)", 7f, 25f, flyByWirePlaneSprite, ActivateFlyByWirePlaneFromUI);
             parallelPosButton = CopySASButton(autopilotUI, AutopilotMode.Target, "Parallel", "Parallel", 5f, -25f, parallelPosSprite, ActivateParallelPosFromUI);
             parallelNegButton = CopySASButton(autopilotUI, AutopilotMode.AntiTarget, "AntiParallel", "AntiParallel", 5f, -25f, parallelNegSprite, ActivateParallelNegFromUI);
 
@@ -168,6 +189,21 @@ namespace FlyByWireSASMode
             SetUIMode(CustomSASMode.FlyByWire);
         }
 
+        private void ActivateFlyByWirePlaneFromUI()
+        {
+            if (activeVesselState != null)
+            {
+                activeVesselState.sasMode = CustomSASMode.FlyByWirePlaneMode;
+                activeVesselState.ResetDirection();
+            }
+            else
+            {
+                activeVesselState = new VesselState(FlightGlobals.ActiveVessel, CustomSASMode.FlyByWirePlaneMode);
+            }
+
+            SetUIMode(CustomSASMode.FlyByWirePlaneMode);
+        }
+
         private void ActivateParallelPosFromUI()
         {
             if (activeVesselState != null)
@@ -204,12 +240,14 @@ namespace FlyByWireSASMode
             if (mode == CustomSASMode.Stock)
             {
                 flyByWireButton.SetState(false);
+                flyByWirePlaneButton.SetState(false);
                 parallelPosButton.SetState(false);
                 parallelNegButton.SetState(false);
             }
             else
             {
                 flyByWireButton.SetState(mode == CustomSASMode.FlyByWire);
+                flyByWirePlaneButton.SetState(mode == CustomSASMode.FlyByWirePlaneMode);
                 parallelPosButton.SetState(mode == CustomSASMode.ParallelPos);
                 parallelNegButton.SetState(mode == CustomSASMode.ParallelNeg);
 
@@ -265,6 +303,7 @@ namespace FlyByWireSASMode
             {
                 isModeAvailableOnActiveVessel = isModeAvailable;
                 flyByWireButton.gameObject.SetActive(isModeAvailable);
+                flyByWirePlaneButton.gameObject.SetActive(isModeAvailable);
                 parallelPosButton.gameObject.SetActive(isModeAvailable);
                 parallelNegButton.gameObject.SetActive(isModeAvailable);
             }
@@ -305,7 +344,7 @@ namespace FlyByWireSASMode
             // continously disable the stability assist button
             stabilityAssistButton.SetState(false);
 
-            if (activeVesselState.sasMode == CustomSASMode.FlyByWire)
+            if (activeVesselState.sasMode == CustomSASMode.FlyByWire || activeVesselState.sasMode == CustomSASMode.FlyByWirePlaneMode)
             {            
                 // set marker position on navball
                 Vector3 markerLocalPos = navBall.attitudeGymbal * (activeVesselState.direction * navBall.VectorUnitScale);
